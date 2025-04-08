@@ -62,86 +62,104 @@ const isBottomReached = () => {
 
 // 处理当前可见的回答
 const processVisibleAnswers = async () => {
-	const answers = document.querySelectorAll(".List-item .ContentItem.AnswerItem");
+	// 先找到所有回答项
+	const answers = document.querySelectorAll(".ContentItem.AnswerItem");
+	
 	for (const answer of Array.from(answers)) {
-		// 检查是否已经处理过
-		if (answer.querySelector(".zhihucopier-button")) continue;
-
-		// 展开回答
-		const expandButton = answer.querySelector(".ContentItem-expandButton") as HTMLElement;
-		if (expandButton) {
-			expandButton.click();
-			await sleep(200);
-		}
-
-		// 处理回答内容
-		const richText = answer.querySelector(".RichText") as HTMLElement;
-		if (richText) {
-			try {
-				// 处理回答
-				const answerData = await NormalItem(richText);
-				AddAnswer(answerData);
-
-				// 添加标记，表示已处理
-				const marker = document.createElement("div");
-				marker.classList.add("zhihucopier-button");
-				richText.prepend(marker);
-			} catch (e) {
-				console.error("处理回答时出错:", e);
+		try {
+			// 展开回答
+			const expandButton = answer.querySelector(".ContentItem-expandButton") as HTMLElement;
+			if (expandButton) {
+				expandButton.click();
+				await sleep(500); // 等待内容展开
 			}
+
+			// 获取回答内容区域
+			const richText = answer.querySelector(".RichText") as HTMLElement;
+			if (!richText) continue;
+
+			// 跳过不需要处理的元素
+			if (richText.parentElement.classList.contains("Editable")) continue;
+			if (richText.children[0]?.classList.contains("zhihucopier-button")) continue;
+			if (richText.children[0]?.classList.contains("Image-Wrapper-Preview")) continue;
+			
+			if (getParent(richText, "PinItem")) {
+				const richInner = getParent(richText, "RichContent-inner");
+				if (richInner && richInner.querySelector(".ContentItem-more")) continue;
+			}
+
+			// 去掉重复的按钮
+			let richTextChildren = Array.from(richText.children) as HTMLElement[];
+			for (let i = 1; i < richTextChildren.length; i++) {
+				const el = richTextChildren[i];
+				if (el.classList.contains("zhihucopier-button")) el.remove();
+				else break;
+			}
+
+			// 按钮组容器
+			const ButtonContainer = document.createElement("div");
+			ButtonContainer.classList.add("zhihucopier-button");
+			richText.prepend(ButtonContainer);
+
+			// 处理回答
+			const answerData = await NormalItem(richText);
+			AddAnswer(answerData);
+
+			// 复制为Markdown按钮
+			const ButtonCopyMarkdown = MakeButton();
+			ButtonCopyMarkdown.innerHTML = "复制为Markdown";
+			ButtonCopyMarkdown.style.borderRadius = "1em 0 0 1em";
+			ButtonCopyMarkdown.style.paddingLeft = ".4em";
+			ButtonContainer.prepend(ButtonCopyMarkdown);
+
+			ButtonCopyMarkdown.addEventListener("click", () => {
+				try {
+					navigator.clipboard.writeText(answerData.content);
+					ButtonCopyMarkdown.innerHTML = "复制成功✅";
+					setTimeout(() => {
+						ButtonCopyMarkdown.innerHTML = "复制为Markdown";
+					}, 1000);
+				} catch {
+					ButtonCopyMarkdown.innerHTML = "发生未知错误<br>请联系开发者";
+					ButtonCopyMarkdown.style.height = "4em";
+					setTimeout(() => {
+						ButtonCopyMarkdown.style.height = "2em";
+						ButtonCopyMarkdown.innerHTML = "复制为Markdown";
+					}, 1000);
+				}
+			});
+
+			// 下载JSON按钮
+			const ButtonDownloadJSON = MakeButton();
+			ButtonDownloadJSON.innerHTML = "下载为JSON";
+			ButtonDownloadJSON.style.borderRadius = "0 1em 1em 0";
+			ButtonDownloadJSON.style.width = "100px";
+			ButtonDownloadJSON.style.paddingRight = ".4em";
+			ButtonContainer.appendChild(ButtonDownloadJSON);
+
+			ButtonDownloadJSON.addEventListener("click", () => {
+				try {
+					const blob = new Blob([JSON.stringify(answerData, null, 2)], {
+						type: "application/json;charset=utf-8"
+					});
+					saveAs(blob, `${answerData.title}-${answerData.author.name}.json`);
+					ButtonDownloadJSON.innerHTML = "下载成功✅";
+					setTimeout(() => {
+						ButtonDownloadJSON.innerHTML = "下载为JSON";
+					}, 1000);
+				} catch {
+					ButtonDownloadJSON.innerHTML = "发生未知错误<br>请联系开发者";
+					ButtonDownloadJSON.style.height = "4em";
+					setTimeout(() => {
+						ButtonDownloadJSON.style.height = "2em";
+						ButtonDownloadJSON.innerHTML = "下载为JSON";
+					}, 1000);
+				}
+			});
+		} catch (e) {
+			console.error("处理回答时出错:", e);
 		}
 	}
-};
-
-// 抓取所有回答
-const fetchAllAnswers = async (progressCallback?: (status: string) => void) => {
-	let attempts = 0;
-	const maxAttempts = 100; // 防止无限循环
-	let prevAnswerCount = 0;
-
-	while (attempts < maxAttempts) {
-		// 处理当前可见的回答
-		await processVisibleAnswers();
-
-		// 获取当前回答数量
-		const currentAnswerCount = allAnswers.length;
-		if (currentAnswerCount > prevAnswerCount) {
-			progressCallback?.(`已抓取 ${currentAnswerCount} 个回答...`);
-			prevAnswerCount = currentAnswerCount;
-		}
-
-		// 点击"显示更多"按钮
-		const loadMoreButton = await waitForElement(".QuestionMainAction");
-		if (!loadMoreButton || loadMoreButton.textContent?.includes("收起")) {
-			if (!isBottomReached()) {
-				// 如果没有到达底部，继续滚动
-				scrollToBottom();
-				await sleep(1000);
-				continue;
-			}
-			break;
-		}
-
-		// 点击加载更多
-		(loadMoreButton as HTMLElement).click();
-		await sleep(1000);
-
-		attempts++;
-	}
-
-	// 下载所有回答
-	const questionData: QuestionData = {
-		title: allAnswers[0]?.title || "未知问题",
-		url: window.location.href,
-		answers: allAnswers
-	};
-
-	const blob = new Blob([JSON.stringify(questionData, null, 2)], {
-		type: "application/json;charset=utf-8"
-	});
-
-	saveAs(blob, `${questionData.title}-${allAnswers.length}个回答.json`);
-	progressCallback?.(`完成，已下载 ${allAnswers.length} 个回答`);
 };
 
 const main = async () => {
@@ -152,38 +170,99 @@ const main = async () => {
 	Titles.forEach((titleItem) => {
 		if (titleItem.querySelector(".zhihucopier-button")) return;
 
-		const ButtonContainer = document.createElement("div");
-		ButtonContainer.style.position = "absolute";
-		ButtonContainer.style.right = "1em";
-		titleItem.style.position = "relative";
-		titleItem.appendChild(ButtonContainer);
+		const Button = MakeButton();
+		Button.style.width = "120px";
+		Button.style.fontSize = "13px";
+		Button.style.lineHeight = "13px";
+		Button.style.margin = "0";
+		Button.innerHTML = "抓取全部回答";
+		Button.classList.add("zhihucopier-button");
 
-		// 抓取按钮
-		const FetchButton = MakeButton();
-		FetchButton.style.width = "160px";
-		FetchButton.innerHTML = "抓取所有回答";
-		FetchButton.addEventListener("click", async () => {
+		if (getParent(titleItem, "App-main")) {
+			titleItem.append(Button);
+		} else {
+			Button.style.marginRight = ".4em";
+			titleItem.prepend(Button);
+		}
+
+		Button.addEventListener("click", async (e) => {
+			e.stopPropagation();
+			e.preventDefault();
+
 			try {
-				FetchButton.disabled = true;
-				await fetchAllAnswers((status) => {
-					FetchButton.innerHTML = status;
+				Button.disabled = true;
+				Button.innerHTML = "开始抓取...";
+
+				// 抓取所有回答
+				let attempts = 0;
+				const maxAttempts = 100; // 防止无限循环
+				let prevAnswerCount = 0;
+
+				while (attempts < maxAttempts) {
+					// 处理当前可见的回答
+					await processVisibleAnswers();
+					
+					// 获取当前回答数量
+					const currentAnswerCount = allAnswers.length;
+					if (currentAnswerCount > prevAnswerCount) {
+						Button.innerHTML = `已抓取 ${currentAnswerCount} 个回答...`;
+						prevAnswerCount = currentAnswerCount;
+					}
+
+					// 点击"显示更多"按钮
+					const loadMoreButton = await waitForElement(".QuestionMainAction");
+					if (!loadMoreButton || loadMoreButton.textContent?.includes("收起")) {
+						if (!isBottomReached()) {
+							// 如果没有到达底部，继续滚动
+							scrollToBottom();
+							await sleep(1000);
+							continue;
+						}
+						break;
+					}
+
+					// 点击加载更多
+					(loadMoreButton as HTMLElement).click();
+					await sleep(1000);
+					
+					attempts++;
+				}
+
+				// 下载所有回答
+				const questionData: QuestionData = {
+					title: allAnswers[0]?.title || "未知问题",
+					url: window.location.href,
+					answers: allAnswers
+				};
+
+				const blob = new Blob([JSON.stringify(questionData, null, 2)], {
+					type: "application/json;charset=utf-8"
 				});
+
+				saveAs(blob, `${questionData.title}-${allAnswers.length}个回答.json`);
+				
+				Button.style.width = "90px";
+				Button.innerHTML = "下载成功✅";
 				setTimeout(() => {
-					FetchButton.innerHTML = "抓取所有回答";
-					FetchButton.disabled = false;
+					Button.innerHTML = "抓取全部回答";
+					Button.style.width = "120px";
+					Button.disabled = false;
 				}, 1000);
-			} catch (e) {
-				console.error(e);
-				FetchButton.innerHTML = "抓取失败";
+			} catch {
+				Button.style.width = "190px";
+				Button.innerHTML = "发生未知错误，请联系开发者";
 				setTimeout(() => {
-					FetchButton.innerHTML = "抓取所有回答";
-					FetchButton.disabled = false;
+					Button.innerHTML = "抓取全部回答";
+					Button.style.width = "120px";
+					Button.disabled = false;
 				}, 1000);
 			}
 		});
-		ButtonContainer.appendChild(FetchButton);
 	});
+
+	await processVisibleAnswers();
 };
 
 // 运行主函数
-main();
+setTimeout(main, 300);
+setInterval(main, 1000);
