@@ -74,6 +74,11 @@ const processVisibleAnswers = async () => {
 				await sleep(500); // 等待内容展开
 			}
 
+			// 获取赞同数
+			const voteButton = answer.querySelector(".VoteButton--up");
+			const voteText = voteButton?.textContent?.trim() || "";
+			const voteCount = parseInt(voteText.replace(/[^0-9]/g, "")) || 0;
+
 			// 获取回答内容区域
 			const richText = answer.querySelector(".RichText") as HTMLElement;
 			if (!richText) continue;
@@ -103,6 +108,8 @@ const processVisibleAnswers = async () => {
 
 			// 处理回答
 			const answerData = await NormalItem(richText);
+			// 添加赞同数到回答数据中
+			answerData.voteCount = voteCount;
 			AddAnswer(answerData);
 
 			// 复制为Markdown按钮

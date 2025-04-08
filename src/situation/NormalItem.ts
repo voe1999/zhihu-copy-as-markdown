@@ -36,7 +36,9 @@ const getVoteCount = (dom: HTMLElement): number => {
         const voteButton = contentItem.querySelector(".VoteButton--up");
         if (voteButton) {
             const voteText = voteButton.textContent?.trim() || "0";
-            return parseInt(voteText) || 0;
+            // 提取数字部分
+            const match = voteText.match(/\d+/);
+            return match ? parseInt(match[0]) : 0;
         }
     } catch {}
     return 0;
@@ -46,35 +48,37 @@ export default async (dom: HTMLElement): Promise<AnswerData> => {
     const lex = lexer(dom.childNodes as NodeListOf<Element>);
     const markdown = parser(lex);
 
-    const zop = (() => {
-        let element = utils.getParent(dom, "AnswerItem");
-        if (!element) element = utils.getParent(dom, "Post-content");
+    // 获取回答元素
+    const answerItem = utils.getParent(dom, "AnswerItem") || utils.getParent(dom, "Post-content");
+    if (!answerItem) {
+        throw new Error("Cannot find answer item");
+    }
 
-        try {
-            if (element instanceof HTMLElement)
-                return JSON.parse(decodeURIComponent(element.getAttribute("data-zop") || "{}"));
-        } catch { }
+    // 获取作者信息
+    const authorLink = answerItem.querySelector(".UserLink-link") as HTMLAnchorElement;
+    const authorName = authorLink?.innerText?.trim() || "匿名用户";
+    const authorId = authorLink?.href?.split("/").pop() || "";
 
-        return null;
-    })();
+    // 获取创建和更新时间
+    const contentItem = answerItem.closest(".ContentItem");
+    const timeSpan = contentItem?.querySelector(".ContentItem-time span");
+    const timeText = timeSpan?.getAttribute("data-tooltip") || timeSpan?.getAttribute("aria-label") || "";
+    const createdTime = timeText.replace(/^发布于\s+/, "");
+    const updatedTime = contentItem?.getAttribute("data-updated-time") || createdTime;
 
+    // 获取标题和其他信息
     const title = utils.getTitle(dom);
-    const author = utils.getAuthor(dom);
     const url = utils.getURL(dom);
     const voteCount = getVoteCount(dom);
-    const itemId = (zop?.itemId as string) || getUUID();
-
-    const contentItem = utils.getParent(dom, "ContentItem");
-    const createdTime = contentItem instanceof HTMLElement ? contentItem.getAttribute("data-created-time") || "" : "";
-    const updatedTime = contentItem instanceof HTMLElement ? contentItem.getAttribute("data-updated-time") || "" : "";
+    const itemId = contentItem?.getAttribute("data-zop-itemid") || getUUID();
 
     return {
         id: itemId,
         title: title.toString(),
         content: markdown.join("\n\n"),
         author: {
-            name: author.toString(),
-            url: `https://www.zhihu.com/people/${author.toString()}`
+            name: authorName,
+            url: authorId ? `https://www.zhihu.com/people/${authorId}` : ""
         },
         url,
         voteCount,
