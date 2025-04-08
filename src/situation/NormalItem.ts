@@ -66,14 +66,18 @@ export default async (dom: HTMLElement): Promise<AnswerData> => {
     const createdTime = timeText.replace(/^发布于\s+/, "");
     const updatedTime = contentItem?.getAttribute("data-updated-time") || createdTime;
 
+    // 获取回答 ID
+    const answerLink = contentItem?.querySelector(".ContentItem-time a") as HTMLAnchorElement;
+    const answerUrl = answerLink?.href || "";
+    const answerId = answerUrl.split("/answer/")[1] || getUUID();
+
     // 获取标题和其他信息
     const title = utils.getTitle(dom);
-    const url = utils.getURL(dom);
+    const url = answerUrl || utils.getURL(dom);
     const voteCount = getVoteCount(dom);
-    const itemId = contentItem?.getAttribute("data-zop-itemid") || getUUID();
 
     return {
-        id: itemId,
+        id: answerId,
         title: title.toString(),
         content: markdown.join("\n\n"),
         author: {
