@@ -2,7 +2,7 @@ import path from "path";
 import webpack from "webpack";
 import fs from "fs";
 import HtmlWebpackPlugin from "html-webpack-plugin";
-import UglifyJsPlugin from "uglifyjs-webpack-plugin";
+import TerserPlugin from "terser-webpack-plugin";
 
 const __dirname = path.resolve();
 
@@ -65,17 +65,20 @@ export default (env, argv) => {
                 filename: "bundle.min.js",
                 path: path.resolve(__dirname, "dist"),
             },
-            plugins: [
-                new UglifyJsPlugin({
-                    uglifyOptions: {
-                        compress: {
-                            drop_console: true,
-                            drop_debugger: true,
-                            pure_funcs: ["console.log"],
-                        },
-                    },
-                }),
-            ]
+            optimization: {
+                minimize: true,
+                minimizer: [
+                    new TerserPlugin({
+                        terserOptions: {
+                            compress: {
+                                drop_console: true,
+                                drop_debugger: true,
+                                pure_funcs: ["console.log"]
+                            }
+                        }
+                    })
+                ]
+            }
         };
     } else return devConfig;
 };

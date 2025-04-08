@@ -1,246 +1,189 @@
-
 import { saveAs } from "file-saver";
 import { MakeButton, getParent } from "./core/utils";
-import NormalItem from "./situation/NormalItem";
-import * as JSZip from "jszip";
+import NormalItem, { AnswerData } from "./situation/NormalItem";
 import PinItem from "./situation/PinItem";
 
-type ResultType = {
-	markdown: string[],
-	zip: JSZip,
-	title: string,
-	dom: HTMLElement,
-	itemId?: string,
-	question?: boolean,
+interface QuestionData {
+	title: string;
+	url: string;
+	answers: AnswerData[];
+}
+
+const allAnswers: AnswerData[] = [];
+
+const AddAnswer = (answer: AnswerData) => {
+	// 避免重复添加相同的回答
+	if (allAnswers.every((item) => item.id !== answer.id)) {
+		allAnswers.push(answer);
+	}
 };
 
-const allResults: ResultType[] = [];
-
-const AddResult = (result: ResultType) => {
-	// 如果 result.dom 与其他的 dom 不重复，就添加
-	if (allResults.every((item) => item.dom !== result.dom)) allResults.push(result);
-};
-
-
-// 将 allResults[i].zip 合并为一个 zip 并下载
-const downloadAllResults = async () => {
-	const zip = new JSZip();
-	allResults.forEach((item) => {
-		const folderName = `${item.title}-${item.itemId}`;
-
-		Object.keys(item.zip.files).forEach(val => {
-			zip.files[folderName + "/" + val] = item.zip.files[val];
-		});
-	});
-
-	saveAs(await zip.generateAsync({ type: "blob" }),
-		`问题『${allResults[0].title}』下的${allResults.length}个回答.zip`
-	);
-
-	console.log(zip);
-
-	return zip;
-};
-
-
-const main = async () => {
-
-	console.log("Starting…");
-
-	const RichTexts = Array.from(document.querySelectorAll(".RichText")) as HTMLElement[];
-
-	const Titles = Array.from(document.getElementsByClassName("QuestionHeader-title")) as HTMLElement[];
-
-	for (let RichText of RichTexts) {
-
-		try {
-
-			// 去掉重复的按钮
-			let RichTextChilren = Array.from(RichText.children) as HTMLElement[];
-
-			for (let i = 1; i < RichTextChilren.length; i++) {
-				const el = RichTextChilren[i];
-				if (el.classList.contains("zhihucopier-button")) el.remove();
-				else break;
-			}
-		} catch { }
-
-		try {
-
-			try {
-
-				if (RichText.parentElement.classList.contains("Editable")) continue;
-
-				if (RichText.children[0].classList.contains("zhihucopier-button")) continue;
-
-				if (RichText.children[0].classList.contains("Image-Wrapper-Preview")) continue;
-
-				if (getParent(RichText, "PinItem")) {
-					const richInner = getParent(RichText, "RichContent-inner");
-					if (richInner && richInner.querySelector(".ContentItem-more")) continue;
-				};
-
-			} catch { }
-
-
-			// 按钮组
-			const ButtonContainer = document.createElement("div");
-			RichText.prepend(ButtonContainer);
-			ButtonContainer.classList.add("zhihucopier-button");
-
-			let result: ResultType;
-
-			if (getParent(RichText, "PinItem")) {
-				// 想法
-
-				const richInner = getParent(RichText, "RichContent-inner");
-
-				if (richInner && richInner.querySelector(".ContentItem-more")) continue;
-
-				const res = await PinItem(RichText);
-
-				result = {
-					markdown: res.markdown,
-					zip: res.zip,
-					title: res.title,
-					dom: RichText,
-					itemId: res.itemId,
-				};
-			} else {
-				// 回答
-
-				const res = await NormalItem(RichText);
-
-				result = {
-					markdown: res.markdown,
-					zip: res.zip,
-					title: res.title,
-					dom: RichText,
-					itemId: res.itemId,
-				};
-
-				if (getParent(RichText, "QuestionRichText")) {
-					result.question = true;
-					result.itemId = "问题描述";
-				}
-			};
-
-			AddResult(result);
-
-
-			// 下载为Zip
-			const ButtonZipDownload = MakeButton();
-			ButtonZipDownload.innerHTML = "下载全文为Zip";
-			ButtonZipDownload.style.borderRadius = "0 1em 1em 0";
-			ButtonZipDownload.style.width = "100px";
-			ButtonZipDownload.style.paddingRight = ".4em";
-
-			ButtonContainer.prepend(ButtonZipDownload);
-
-			ButtonZipDownload.addEventListener("click", async () => {
-				try {
-					const blob = await result.zip.generateAsync({ type: "blob" });
-					saveAs(blob, result.title + "-" + result.itemId + ".zip");
-
-					ButtonZipDownload.innerHTML = "下载成功✅";
-					setTimeout(() => {
-						ButtonZipDownload.innerHTML = "下载全文为Zip";
-					}, 1000);
-				} catch {
-					ButtonZipDownload.innerHTML = "发生未知错误<br>请联系开发者";
-					ButtonZipDownload.style.height = "4em";
-					setTimeout(() => {
-						ButtonZipDownload.style.height = "2em";
-						ButtonZipDownload.innerHTML = "下载全文为Zip";
-					}, 1000);
-				}
-			});
-
-
-			// 复制为Markdown
-			const ButtonCopyMarkdown = MakeButton();
-			ButtonCopyMarkdown.innerHTML = "复制为Markdown";
-			ButtonCopyMarkdown.style.borderRadius = "1em 0 0 1em";
-			ButtonCopyMarkdown.style.paddingLeft = ".4em";
-			ButtonContainer.prepend(ButtonCopyMarkdown);
-
-			ButtonCopyMarkdown.addEventListener("click", () => {
-				try {
-					navigator.clipboard.writeText(result.markdown.join("\n\n"));
-					ButtonCopyMarkdown.innerHTML = "复制成功✅";
-					setTimeout(() => {
-						ButtonCopyMarkdown.innerHTML = "复制为Markdown";
-					}, 1000);
-				} catch {
-					ButtonCopyMarkdown.innerHTML = "发生未知错误<br>请联系开发者";
-					ButtonCopyMarkdown.style.height = "4em";
-					setTimeout(() => {
-						ButtonCopyMarkdown.style.height = "2em";
-						ButtonCopyMarkdown.innerHTML = "复制为Markdown";
-					}, 1000);
-				}
-			});
-
-
-		} catch (e) {
-			console.log(e);
+// 等待元素出现
+const waitForElement = (selector: string, timeout = 5000): Promise<Element | null> => {
+	return new Promise((resolve) => {
+		if (document.querySelector(selector)) {
+			return resolve(document.querySelector(selector));
 		}
 
+		const observer = new MutationObserver(() => {
+			if (document.querySelector(selector)) {
+				observer.disconnect();
+				resolve(document.querySelector(selector));
+			}
+		});
+
+		observer.observe(document.body, {
+			childList: true,
+			subtree: true
+		});
+
+		setTimeout(() => {
+			observer.disconnect();
+			resolve(null);
+		}, timeout);
+	});
+};
+
+// 等待一段时间
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 滚动到底部
+const scrollToBottom = () => {
+	window.scrollTo({
+		top: document.documentElement.scrollHeight,
+		behavior: "smooth"
+	});
+};
+
+// 检查是否到达页面底部
+const isBottomReached = () => {
+	return window.innerHeight + window.pageYOffset >= document.documentElement.scrollHeight - 100;
+};
+
+// 处理当前可见的回答
+const processVisibleAnswers = async () => {
+	const answers = document.querySelectorAll(".List-item .ContentItem.AnswerItem");
+	for (const answer of Array.from(answers)) {
+		// 检查是否已经处理过
+		if (answer.querySelector(".zhihucopier-button")) continue;
+
+		// 展开回答
+		const expandButton = answer.querySelector(".ContentItem-expandButton") as HTMLElement;
+		if (expandButton) {
+			expandButton.click();
+			await sleep(200);
+		}
+
+		// 处理回答内容
+		const richText = answer.querySelector(".RichText") as HTMLElement;
+		if (richText) {
+			try {
+				// 处理回答
+				const answerData = await NormalItem(richText);
+				AddAnswer(answerData);
+
+				// 添加标记，表示已处理
+				const marker = document.createElement("div");
+				marker.classList.add("zhihucopier-button");
+				richText.prepend(marker);
+			} catch (e) {
+				console.error("处理回答时出错:", e);
+			}
+		}
+	}
+};
+
+// 抓取所有回答
+const fetchAllAnswers = async (progressCallback?: (status: string) => void) => {
+	let attempts = 0;
+	const maxAttempts = 100; // 防止无限循环
+	let prevAnswerCount = 0;
+
+	while (attempts < maxAttempts) {
+		// 处理当前可见的回答
+		await processVisibleAnswers();
+
+		// 获取当前回答数量
+		const currentAnswerCount = allAnswers.length;
+		if (currentAnswerCount > prevAnswerCount) {
+			progressCallback?.(`已抓取 ${currentAnswerCount} 个回答...`);
+			prevAnswerCount = currentAnswerCount;
+		}
+
+		// 点击"显示更多"按钮
+		const loadMoreButton = await waitForElement(".QuestionMainAction");
+		if (!loadMoreButton || loadMoreButton.textContent?.includes("收起")) {
+			if (!isBottomReached()) {
+				// 如果没有到达底部，继续滚动
+				scrollToBottom();
+				await sleep(1000);
+				continue;
+			}
+			break;
+		}
+
+		// 点击加载更多
+		(loadMoreButton as HTMLElement).click();
+		await sleep(1000);
+
+		attempts++;
 	}
 
+	// 下载所有回答
+	const questionData: QuestionData = {
+		title: allAnswers[0]?.title || "未知问题",
+		url: window.location.href,
+		answers: allAnswers
+	};
 
-	// 下载该问题下的所有回答
+	const blob = new Blob([JSON.stringify(questionData, null, 2)], {
+		type: "application/json;charset=utf-8"
+	});
+
+	saveAs(blob, `${questionData.title}-${allAnswers.length}个回答.json`);
+	progressCallback?.(`完成，已下载 ${allAnswers.length} 个回答`);
+};
+
+const main = async () => {
+	console.log("Starting…");
+
+	// 添加抓取按钮
+	const Titles = Array.from(document.getElementsByClassName("QuestionHeader-title")) as HTMLElement[];
 	Titles.forEach((titleItem) => {
-
-
 		if (titleItem.querySelector(".zhihucopier-button")) return;
 
-		// 按钮
-		const Button = MakeButton();
-		Button.style.width = "75px";
-		// Button.style.height = "30px";
-		Button.style.fontSize = "13px";
-		Button.style.lineHeight = "13px";
-		Button.style.margin = "0";
-		Button.innerHTML = "批量下载";
+		const ButtonContainer = document.createElement("div");
+		ButtonContainer.style.position = "absolute";
+		ButtonContainer.style.right = "1em";
+		titleItem.style.position = "relative";
+		titleItem.appendChild(ButtonContainer);
 
-		Button.classList.add("zhihucopier-button");
-
-
-		if (getParent(titleItem, "App-main")) {
-			titleItem.append(Button);
-		} else {
-			Button.style.marginRight = ".4em";
-			titleItem.prepend(Button);
-		}
-
-
-		Button.addEventListener("click", (e) => {
-			e.stopPropagation();
-			e.preventDefault();
-
+		// 抓取按钮
+		const FetchButton = MakeButton();
+		FetchButton.style.width = "160px";
+		FetchButton.innerHTML = "抓取所有回答";
+		FetchButton.addEventListener("click", async () => {
 			try {
-				downloadAllResults();
-				Button.style.width = "90px";
-				Button.innerHTML = "下载成功✅";
+				FetchButton.disabled = true;
+				await fetchAllAnswers((status) => {
+					FetchButton.innerHTML = status;
+				});
 				setTimeout(() => {
-					Button.innerHTML = "批量下载";
-					Button.style.width = "75px";
+					FetchButton.innerHTML = "抓取所有回答";
+					FetchButton.disabled = false;
 				}, 1000);
-
-			} catch {
-				Button.style.width = "190px";
-				Button.innerHTML = "发生未知错误，请联系开发者";
+			} catch (e) {
+				console.error(e);
+				FetchButton.innerHTML = "抓取失败";
 				setTimeout(() => {
-					Button.innerHTML = "批量下载";
-					Button.style.width = "75px";
+					FetchButton.innerHTML = "抓取所有回答";
+					FetchButton.disabled = false;
 				}, 1000);
 			}
 		});
+		ButtonContainer.appendChild(FetchButton);
 	});
 };
 
-
-setTimeout(main, 300);
-
-setInterval(main, 1000);
+// 运行主函数
+main();
