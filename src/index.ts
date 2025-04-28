@@ -64,7 +64,7 @@ const isBottomReached = () => {
 const processVisibleAnswers = async () => {
 	// 先找到所有回答项
 	const answers = document.querySelectorAll(".ContentItem.AnswerItem");
-	
+
 	for (const answer of Array.from(answers)) {
 		try {
 			// 展开回答
@@ -87,7 +87,7 @@ const processVisibleAnswers = async () => {
 			if (richText.parentElement.classList.contains("Editable")) continue;
 			if (richText.children[0]?.classList.contains("zhihucopier-button")) continue;
 			if (richText.children[0]?.classList.contains("Image-Wrapper-Preview")) continue;
-			
+
 			if (getParent(richText, "PinItem")) {
 				const richInner = getParent(richText, "RichContent-inner");
 				if (richInner && richInner.querySelector(".ContentItem-more")) continue;
@@ -174,15 +174,12 @@ const processVisibleAnswers = async () => {
 		try {
 			const richText = pin.querySelector(".RichText") as HTMLElement;
 			if (!richText) continue;
-			if (richText.children[0]?.classList.contains("zhihucopier-button")) continue;
 
-			// 去掉重复的按钮
-			let richTextChildren = Array.from(richText.children) as HTMLElement[];
-			for (let i = 1; i < richTextChildren.length; i++) {
-				const el = richTextChildren[i];
-				if (el.classList.contains("zhihucopier-button")) el.remove();
-				else break;
-			}
+			// 如果已经有按钮就跳过
+			if (richText.querySelector(".zhihucopier-button")) continue;
+
+			// 去掉所有旧按钮
+			Array.from(richText.querySelectorAll(".zhihucopier-button")).forEach((btn) => btn.remove());
 
 			// 按钮组容器
 			const ButtonContainer = document.createElement("div");
@@ -195,10 +192,19 @@ const processVisibleAnswers = async () => {
 			let author = "匿名用户";
 			let authorUrl = "";
 			if (pinParent && pinParent instanceof HTMLElement) {
-				const authorLink = pinParent.querySelector(".UserLink-link");
-				if (authorLink && authorLink instanceof HTMLElement) {
-					author = authorLink.innerText?.trim() || "匿名用户";
-					authorUrl = authorLink.getAttribute("href") || "";
+				// 优先用 meta 标签
+				const metaName = pinParent.querySelector("meta[itemprop=\"name\"]");
+				const metaUrl = pinParent.querySelector("meta[itemprop=\"url\"]");
+				if (metaName && metaUrl) {
+					author = metaName.getAttribute("content") || "匿名用户";
+					authorUrl = metaUrl.getAttribute("content") || "";
+				} else {
+					// 兜底用 a 标签
+					const authorLink = pinParent.querySelector(".UserLink-link");
+					if (authorLink && authorLink instanceof HTMLElement) {
+						author = authorLink.innerText?.trim() || "匿名用户";
+						authorUrl = authorLink.getAttribute("href") || "";
+					}
 				}
 			}
 			const answerData = {
@@ -207,7 +213,7 @@ const processVisibleAnswers = async () => {
 				content: pinRaw.markdown.join("\n\n"),
 				author: {
 					name: author,
-					url: authorUrl ? `https://www.zhihu.com${authorUrl}` : ""
+					url: authorUrl
 				},
 				url: `https://www.zhihu.com/pin/${pinRaw.itemId}`,
 				voteCount: 0,
@@ -312,7 +318,7 @@ const main = async () => {
 				while (attempts < maxAttempts) {
 					// 处理当前可见的回答
 					await processVisibleAnswers();
-					
+
 					// 获取当前回答数量
 					const currentAnswerCount = allAnswers.length;
 					if (currentAnswerCount > prevAnswerCount) {
@@ -335,7 +341,7 @@ const main = async () => {
 					// 点击加载更多
 					(loadMoreButton as HTMLElement).click();
 					await sleep(1000);
-					
+
 					attempts++;
 				}
 
@@ -351,7 +357,7 @@ const main = async () => {
 				});
 
 				saveAs(blob, `${questionData.title}-${allAnswers.length}个回答.json`);
-				
+
 				Button.style.width = "90px";
 				Button.innerHTML = "下载成功✅";
 				setTimeout(() => {
