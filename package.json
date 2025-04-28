@@ -1,6 +1,6 @@
 {
   "name": "zhihu-downloader",
-  "version": "0.3.41",
+  "version": "0.3.42",
   "scripts": {
     "dev": "run-s build:test start",
     "start": "run-p watch serve",

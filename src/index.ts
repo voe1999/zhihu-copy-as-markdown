@@ -167,6 +167,110 @@ const processVisibleAnswers = async () => {
 			console.error("处理回答时出错:", e);
 		}
 	}
+
+	// 处理想法（PinItem）
+	const pins = document.querySelectorAll(".PinItem");
+	for (const pin of Array.from(pins)) {
+		try {
+			const richText = pin.querySelector(".RichText") as HTMLElement;
+			if (!richText) continue;
+			if (richText.children[0]?.classList.contains("zhihucopier-button")) continue;
+
+			// 去掉重复的按钮
+			let richTextChildren = Array.from(richText.children) as HTMLElement[];
+			for (let i = 1; i < richTextChildren.length; i++) {
+				const el = richTextChildren[i];
+				if (el.classList.contains("zhihucopier-button")) el.remove();
+				else break;
+			}
+
+			// 按钮组容器
+			const ButtonContainer = document.createElement("div");
+			ButtonContainer.classList.add("zhihucopier-button");
+			richText.prepend(ButtonContainer);
+
+			// 处理想法内容
+			const pinRaw = await PinItem(richText);
+			const pinParent = getParent(richText, "PinItem");
+			let author = "匿名用户";
+			let authorUrl = "";
+			if (pinParent && pinParent instanceof HTMLElement) {
+				const authorLink = pinParent.querySelector(".UserLink-link");
+				if (authorLink && authorLink instanceof HTMLElement) {
+					author = authorLink.innerText?.trim() || "匿名用户";
+					authorUrl = authorLink.getAttribute("href") || "";
+				}
+			}
+			const answerData = {
+				id: pinRaw.itemId,
+				title: pinRaw.title,
+				content: pinRaw.markdown.join("\n\n"),
+				author: {
+					name: author,
+					url: authorUrl ? `https://www.zhihu.com${authorUrl}` : ""
+				},
+				url: `https://www.zhihu.com/pin/${pinRaw.itemId}`,
+				voteCount: 0,
+				createdTime: "",
+				updatedTime: ""
+			};
+			AddAnswer(answerData);
+
+			// 复制为Markdown按钮
+			const ButtonCopyMarkdown = MakeButton();
+			ButtonCopyMarkdown.innerHTML = "复制为Markdown";
+			ButtonCopyMarkdown.style.borderRadius = "1em 0 0 1em";
+			ButtonCopyMarkdown.style.paddingLeft = ".4em";
+			ButtonContainer.prepend(ButtonCopyMarkdown);
+
+			ButtonCopyMarkdown.addEventListener("click", () => {
+				try {
+					navigator.clipboard.writeText(answerData.content);
+					ButtonCopyMarkdown.innerHTML = "复制成功✅";
+					setTimeout(() => {
+						ButtonCopyMarkdown.innerHTML = "复制为Markdown";
+					}, 1000);
+				} catch {
+					ButtonCopyMarkdown.innerHTML = "发生未知错误<br>请联系开发者";
+					ButtonCopyMarkdown.style.height = "4em";
+					setTimeout(() => {
+						ButtonCopyMarkdown.style.height = "2em";
+						ButtonCopyMarkdown.innerHTML = "复制为Markdown";
+					}, 1000);
+				}
+			});
+
+			// 下载JSON按钮
+			const ButtonDownloadJSON = MakeButton();
+			ButtonDownloadJSON.innerHTML = "下载为JSON";
+			ButtonDownloadJSON.style.borderRadius = "0 1em 1em 0";
+			ButtonDownloadJSON.style.width = "100px";
+			ButtonDownloadJSON.style.paddingRight = ".4em";
+			ButtonContainer.appendChild(ButtonDownloadJSON);
+
+			ButtonDownloadJSON.addEventListener("click", () => {
+				try {
+					const blob = new Blob([JSON.stringify(answerData, null, 2)], {
+						type: "application/json;charset=utf-8"
+					});
+					saveAs(blob, `${answerData.title}-${answerData.author.name}.json`);
+					ButtonDownloadJSON.innerHTML = "下载成功✅";
+					setTimeout(() => {
+						ButtonDownloadJSON.innerHTML = "下载为JSON";
+					}, 1000);
+				} catch {
+					ButtonDownloadJSON.innerHTML = "发生未知错误<br>请联系开发者";
+					ButtonDownloadJSON.style.height = "4em";
+					setTimeout(() => {
+						ButtonDownloadJSON.style.height = "2em";
+						ButtonDownloadJSON.innerHTML = "下载为JSON";
+					}, 1000);
+				}
+			});
+		} catch (e) {
+			console.error("处理想法时出错:", e);
+		}
+	}
 };
 
 const main = async () => {
