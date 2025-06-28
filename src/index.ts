@@ -1,17 +1,18 @@
 import { saveAs } from "file-saver";
 import { MakeButton, getParent } from "./core/utils";
-import NormalItem, { AnswerData } from "./situation/NormalItem";
+import NormalItem from "./situation/NormalItem";
 import PinItem from "./situation/PinItem";
+import { extractAnswerData, ExtractedAnswerData } from "./core/extractor";
 
 interface QuestionData {
 	title: string;
 	url: string;
-	answers: AnswerData[];
+	answers: ExtractedAnswerData[];
 }
 
-const allAnswers: AnswerData[] = [];
+const allAnswers: ExtractedAnswerData[] = [];
 
-const AddAnswer = (answer: AnswerData) => {
+const AddAnswer = (answer: ExtractedAnswerData) => {
 	// 避免重复添加相同的回答
 	if (allAnswers.every((item) => item.id !== answer.id)) {
 		allAnswers.push(answer);
@@ -74,11 +75,6 @@ const processVisibleAnswers = async () => {
 				await sleep(500); // 等待内容展开
 			}
 
-			// 获取赞同数
-			const voteButton = answer.querySelector(".VoteButton--up");
-			const voteText = voteButton?.textContent?.trim() || "";
-			const voteCount = parseInt(voteText.replace(/[^0-9]/g, "")) || 0;
-
 			// 获取回答内容区域
 			const richText = answer.querySelector(".RichText") as HTMLElement;
 			if (!richText) continue;
@@ -107,9 +103,9 @@ const processVisibleAnswers = async () => {
 			richText.prepend(ButtonContainer);
 
 			// 处理回答
-			const answerData = await NormalItem(richText);
-			// 添加赞同数到回答数据中
-			answerData.voteCount = voteCount;
+			const markdownContent = await NormalItem(richText);
+			const answerElement = getParent(richText, "AnswerItem") as HTMLElement;
+			const answerData = extractAnswerData(answerElement, markdownContent);
 			AddAnswer(answerData);
 
 			// 复制为Markdown按钮
@@ -149,7 +145,7 @@ const processVisibleAnswers = async () => {
 					const blob = new Blob([JSON.stringify(answerData, null, 2)], {
 						type: "application/json;charset=utf-8"
 					});
-					saveAs(blob, `${answerData.title}-${answerData.author.name}.json`);
+					saveAs(blob, `${answerData.title}-${answerData.authorName}.json`);
 					ButtonDownloadJSON.innerHTML = "下载成功✅";
 					setTimeout(() => {
 						ButtonDownloadJSON.innerHTML = "下载为JSON";
@@ -207,18 +203,23 @@ const processVisibleAnswers = async () => {
 					}
 				}
 			}
-			const answerData = {
+			const pinContent = pinRaw.markdown.join("\n\n");
+			const pinParentForTitle = getParent(richText, "PinItem");
+			const pinTitle = (pinParentForTitle instanceof HTMLElement && pinParentForTitle.querySelector(".PinItem-content-title")?.textContent?.trim()) || "想法";
+
+			const answerData: ExtractedAnswerData = {
 				id: pinRaw.itemId,
-				title: pinRaw.title,
-				content: pinRaw.markdown.join("\n\n"),
-				author: {
-					name: author,
-					url: authorUrl
-				},
+				title: pinTitle,
+				content: pinContent,
+				authorName: author,
+				authorUrl: authorUrl,
 				url: `https://www.zhihu.com/pin/${pinRaw.itemId}`,
-				voteCount: 0,
+				upvoteCount: 0,
+				commentCount: 0,
 				createdTime: "",
-				updatedTime: ""
+				updatedTime: "",
+				isFollowedVoted: false,
+				isEditorRecommended: false
 			};
 			AddAnswer(answerData);
 
@@ -259,7 +260,7 @@ const processVisibleAnswers = async () => {
 					const blob = new Blob([JSON.stringify(answerData, null, 2)], {
 						type: "application/json;charset=utf-8"
 					});
-					saveAs(blob, `${answerData.title}-${answerData.author.name}.json`);
+					saveAs(blob, `${answerData.title}-${answerData.authorName}.json`);
 					ButtonDownloadJSON.innerHTML = "下载成功✅";
 					setTimeout(() => {
 						ButtonDownloadJSON.innerHTML = "下载为JSON";
@@ -357,7 +358,7 @@ const main = async () => {
 					const finalLoadMoreButton = document.querySelector(".QuestionMainAction");
 					if (finalLoadMoreButton && (finalLoadMoreButton as HTMLElement).innerText.includes("收起")) {
 						await processVisibleAnswers(); // 最后再处理一次
-						console.log("已找到“收起”按钮，抓取结束。");
+						console.log("已找到\"收起\"按钮，抓取结束。");
 						break;
 					}
 				}
@@ -378,14 +379,26 @@ const main = async () => {
 					if (answer.title && answer.title !== questionData.title) {
 						part += `### ${answer.title}\n\n`;
 					}
-					part += `**作者**: [${answer.author.name}](${answer.author.url})\n`;
+					part += `**作者**: [${answer.authorName}](${answer.authorUrl})`;
+					if (answer.authorBadge) {
+						part += ` (${answer.authorBadge})`;
+					}
+					part += "\n";
 					part += `**回答链接**: ${answer.url}\n`;
-					part += `**赞同数**: ${answer.voteCount}\n`;
+					part += `**赞同数**: ${answer.upvoteCount}`;
+					if (answer.isFollowedVoted) {
+						part += " (包含我关注的人)";
+					}
+					part += "\n";
+					part += `**评论数**: ${answer.commentCount}\n`;
 					if (answer.createdTime) {
-						part += `**创建时间**: ${answer.createdTime}\n`;
+						part += `**创建时间**: ${new Date(answer.createdTime).toLocaleString()}\n`;
 					}
 					if (answer.updatedTime) {
-						part += `**更新时间**: ${answer.updatedTime}\n`;
+						part += `**更新时间**: ${new Date(answer.updatedTime).toLocaleString()}\n`;
+					}
+					if (answer.isEditorRecommended) {
+						part += "**编辑推荐**\n";
 					}
 					part += "\n---\n\n";
 					part += answer.content;
