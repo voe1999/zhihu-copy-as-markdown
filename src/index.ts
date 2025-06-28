@@ -361,6 +361,14 @@ const main = async () => {
 						console.log("已找到\"收起\"按钮，抓取结束。");
 						break;
 					}
+
+					// 7. 新增：如果出现了底部的"写回答"区域，也代表结束
+					const bottomBar = document.querySelector("div[data-za-detail-view-path-module=\"BottomBar\"]");
+					if (bottomBar) {
+						await processVisibleAnswers(); // 最后再处理一次
+						console.log("已找到底部写回答区域，抓取结束。");
+						break;
+					}
 				}
 
 				// 下载所有回答
