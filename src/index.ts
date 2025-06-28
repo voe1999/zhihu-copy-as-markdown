@@ -352,11 +352,36 @@ const main = async () => {
 					answers: allAnswers
 				};
 
-				const blob = new Blob([JSON.stringify(questionData, null, 2)], {
-					type: "application/json;charset=utf-8"
+				let markdownContent = `# ${questionData.title}\n\n`;
+				markdownContent += `源问题链接: ${questionData.url}\n\n`;
+
+				const answerMarkdownParts = questionData.answers.map((answer) => {
+					let part = "";
+					// 想法 item 有自己的标题
+					if (answer.title && answer.title !== questionData.title) {
+						part += `### ${answer.title}\n\n`;
+					}
+					part += `**作者**: [${answer.author.name}](${answer.author.url})\n`;
+					part += `**回答链接**: ${answer.url}\n`;
+					part += `**赞同数**: ${answer.voteCount}\n`;
+					if (answer.createdTime) {
+						part += `**创建时间**: ${answer.createdTime}\n`;
+					}
+					if (answer.updatedTime) {
+						part += `**更新时间**: ${answer.updatedTime}\n`;
+					}
+					part += "\n---\n\n";
+					part += answer.content;
+					return part;
 				});
 
-				saveAs(blob, `${questionData.title}-${allAnswers.length}个回答.json`);
+				markdownContent += answerMarkdownParts.join("\n\n------\n\n");
+
+				const blob = new Blob([markdownContent], {
+					type: "text/markdown;charset=utf-8"
+				});
+
+				saveAs(blob, `${questionData.title}-${allAnswers.length}个回答.md`);
 
 				Button.style.width = "90px";
 				Button.innerHTML = "下载成功✅";
