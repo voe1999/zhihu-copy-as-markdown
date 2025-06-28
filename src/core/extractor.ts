@@ -1,4 +1,4 @@
-import { getParent } from "./utils";
+import { getParent, getQuestionTitle } from "./utils";
 
 export interface ExtractedAnswerData {
     id: string;
@@ -69,16 +69,7 @@ export function extractAnswerData(answerElement: HTMLElement, markdownContent: s
     const answerUrl = answerUrlElement?.href || "";
     const id = answerElement.dataset.zopId || answerUrl.split("/answer/")[1] || getUUID();
 
-    const titleElement = document.querySelector(".QuestionHeader-title");
-    let title = "未知问题";
-    if (titleElement) {
-        const clone = titleElement.cloneNode(true) as HTMLElement;
-        const buttonInClone = clone.querySelector(".zhihucopier-button");
-        if (buttonInClone) {
-            buttonInClone.remove();
-        }
-        title = clone.textContent?.trim() || "未知问题";
-    }
+    const title = getQuestionTitle();
     const url = answerUrl || `https://www.zhihu.com/question/${document.location.pathname.split("/")[2]}/answer/${id}`;
 
     // Extract data using the specified strategy

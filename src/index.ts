@@ -1,5 +1,5 @@
 import { saveAs } from "file-saver";
-import { MakeButton, getParent } from "./core/utils";
+import { MakeButton, getParent, getQuestionTitle } from "./core/utils";
 import NormalItem from "./situation/NormalItem";
 import PinItem from "./situation/PinItem";
 import { extractAnswerData, ExtractedAnswerData } from "./core/extractor";
@@ -17,6 +17,38 @@ const AddAnswer = (answer: ExtractedAnswerData) => {
 	if (allAnswers.every((item) => item.id !== answer.id)) {
 		allAnswers.push(answer);
 	}
+};
+
+const generateSingleAnswerMarkdown = (answer: ExtractedAnswerData, questionTitle: string): string => {
+	let markdown = "";
+	// 想法 item 有自己的标题
+	if (answer.title && answer.title !== questionTitle) {
+		markdown += `### ${answer.title}\n\n`;
+	}
+	markdown += `**作者**: [${answer.authorName}](${answer.authorUrl})`;
+	if (answer.authorBadge) {
+		markdown += ` (${answer.authorBadge})`;
+	}
+	markdown += "\n";
+	markdown += `**回答链接**: ${answer.url}\n`;
+	markdown += `**赞同数**: ${answer.upvoteCount}`;
+	if (answer.isFollowedVoted) {
+		markdown += " (包含我关注的人)";
+	}
+	markdown += "\n";
+	markdown += `**评论数**: ${answer.commentCount}\n`;
+	if (answer.createdTime) {
+		markdown += `**创建时间**: ${new Date(answer.createdTime).toLocaleString()}\n`;
+	}
+	if (answer.updatedTime) {
+		markdown += `**更新时间**: ${new Date(answer.updatedTime).toLocaleString()}\n`;
+	}
+	if (answer.isEditorRecommended) {
+		markdown += "**编辑推荐**\n";
+	}
+	markdown += "\n---\n\n";
+	markdown += answer.content;
+	return markdown;
 };
 
 // 等待元素出现
@@ -109,25 +141,36 @@ const processVisibleAnswers = async () => {
 			AddAnswer(answerData);
 
 			// 复制为Markdown按钮
-			const ButtonCopyMarkdown = MakeButton();
-			ButtonCopyMarkdown.innerHTML = "复制为Markdown";
-			ButtonCopyMarkdown.style.borderRadius = "1em 0 0 1em";
-			ButtonCopyMarkdown.style.paddingLeft = ".4em";
-			ButtonContainer.prepend(ButtonCopyMarkdown);
+			const ButtonDownloadMarkdown = MakeButton();
+			ButtonDownloadMarkdown.innerHTML = "下载Markdown";
+			ButtonDownloadMarkdown.style.borderRadius = "1em 0 0 1em";
+			ButtonDownloadMarkdown.style.paddingLeft = ".4em";
+			ButtonContainer.prepend(ButtonDownloadMarkdown);
 
-			ButtonCopyMarkdown.addEventListener("click", () => {
+			ButtonDownloadMarkdown.addEventListener("click", () => {
 				try {
-					navigator.clipboard.writeText(answerData.content);
-					ButtonCopyMarkdown.innerHTML = "复制成功✅";
+					const questionUrl = window.location.href;
+					const questionTitle = answerData.title;
+
+					const markdownHeader = `# ${questionTitle}\n\n源问题链接: ${questionUrl}\n\n`;
+					const singleAnswerMarkdown = generateSingleAnswerMarkdown(answerData, questionTitle);
+					const fullMarkdown = markdownHeader + singleAnswerMarkdown;
+
+					const blob = new Blob([fullMarkdown], {
+						type: "text/markdown;charset=utf-8"
+					});
+					saveAs(blob, `${questionTitle}-${answerData.authorName}.md`);
+
+					ButtonDownloadMarkdown.innerHTML = "下载成功✅";
 					setTimeout(() => {
-						ButtonCopyMarkdown.innerHTML = "复制为Markdown";
+						ButtonDownloadMarkdown.innerHTML = "下载Markdown";
 					}, 1000);
 				} catch {
-					ButtonCopyMarkdown.innerHTML = "发生未知错误<br>请联系开发者";
-					ButtonCopyMarkdown.style.height = "4em";
+					ButtonDownloadMarkdown.innerHTML = "发生未知错误<br>请联系开发者";
+					ButtonDownloadMarkdown.style.height = "4em";
 					setTimeout(() => {
-						ButtonCopyMarkdown.style.height = "2em";
-						ButtonCopyMarkdown.innerHTML = "复制为Markdown";
+						ButtonDownloadMarkdown.style.height = "2em";
+						ButtonDownloadMarkdown.innerHTML = "下载Markdown";
 					}, 1000);
 				}
 			});
@@ -224,25 +267,35 @@ const processVisibleAnswers = async () => {
 			AddAnswer(answerData);
 
 			// 复制为Markdown按钮
-			const ButtonCopyMarkdown = MakeButton();
-			ButtonCopyMarkdown.innerHTML = "复制为Markdown";
-			ButtonCopyMarkdown.style.borderRadius = "1em 0 0 1em";
-			ButtonCopyMarkdown.style.paddingLeft = ".4em";
-			ButtonContainer.prepend(ButtonCopyMarkdown);
+			const ButtonDownloadMarkdown = MakeButton();
+			ButtonDownloadMarkdown.innerHTML = "下载Markdown";
+			ButtonDownloadMarkdown.style.borderRadius = "1em 0 0 1em";
+			ButtonDownloadMarkdown.style.paddingLeft = ".4em";
+			ButtonContainer.prepend(ButtonDownloadMarkdown);
 
-			ButtonCopyMarkdown.addEventListener("click", () => {
+			ButtonDownloadMarkdown.addEventListener("click", () => {
 				try {
-					navigator.clipboard.writeText(answerData.content);
-					ButtonCopyMarkdown.innerHTML = "复制成功✅";
+					const questionTitle = getQuestionTitle();
+					const questionUrl = window.location.href;
+
+					const markdownHeader = `# ${questionTitle}\n\n源问题链接: ${questionUrl}\n\n`;
+					const singleAnswerMarkdown = generateSingleAnswerMarkdown(answerData, questionTitle);
+					const fullMarkdown = markdownHeader + singleAnswerMarkdown;
+
+					const blob = new Blob([fullMarkdown], {
+						type: "text/markdown;charset=utf-8"
+					});
+					saveAs(blob, `${answerData.title}-${answerData.authorName}.md`);
+					ButtonDownloadMarkdown.innerHTML = "下载成功✅";
 					setTimeout(() => {
-						ButtonCopyMarkdown.innerHTML = "复制为Markdown";
+						ButtonDownloadMarkdown.innerHTML = "下载Markdown";
 					}, 1000);
 				} catch {
-					ButtonCopyMarkdown.innerHTML = "发生未知错误<br>请联系开发者";
-					ButtonCopyMarkdown.style.height = "4em";
+					ButtonDownloadMarkdown.innerHTML = "发生未知错误<br>请联系开发者";
+					ButtonDownloadMarkdown.style.height = "4em";
 					setTimeout(() => {
-						ButtonCopyMarkdown.style.height = "2em";
-						ButtonCopyMarkdown.innerHTML = "复制为Markdown";
+						ButtonDownloadMarkdown.style.height = "2em";
+						ButtonDownloadMarkdown.innerHTML = "下载Markdown";
 					}, 1000);
 				}
 			});
@@ -372,8 +425,9 @@ const main = async () => {
 				}
 
 				// 下载所有回答
+				const questionTitle = getQuestionTitle();
 				const questionData: QuestionData = {
-					title: allAnswers[0]?.title || "未知问题",
+					title: questionTitle,
 					url: window.location.href,
 					answers: allAnswers
 				};
@@ -382,35 +436,7 @@ const main = async () => {
 				markdownContent += `源问题链接: ${questionData.url}\n\n`;
 
 				const answerMarkdownParts = questionData.answers.map((answer) => {
-					let part = "";
-					// 想法 item 有自己的标题
-					if (answer.title && answer.title !== questionData.title) {
-						part += `### ${answer.title}\n\n`;
-					}
-					part += `**作者**: [${answer.authorName}](${answer.authorUrl})`;
-					if (answer.authorBadge) {
-						part += ` (${answer.authorBadge})`;
-					}
-					part += "\n";
-					part += `**回答链接**: ${answer.url}\n`;
-					part += `**赞同数**: ${answer.upvoteCount}`;
-					if (answer.isFollowedVoted) {
-						part += " (包含我关注的人)";
-					}
-					part += "\n";
-					part += `**评论数**: ${answer.commentCount}\n`;
-					if (answer.createdTime) {
-						part += `**创建时间**: ${new Date(answer.createdTime).toLocaleString()}\n`;
-					}
-					if (answer.updatedTime) {
-						part += `**更新时间**: ${new Date(answer.updatedTime).toLocaleString()}\n`;
-					}
-					if (answer.isEditorRecommended) {
-						part += "**编辑推荐**\n";
-					}
-					part += "\n---\n\n";
-					part += answer.content;
-					return part;
+					return generateSingleAnswerMarkdown(answer, questionData.title);
 				});
 
 				markdownContent += answerMarkdownParts.join("\n\n------\n\n");

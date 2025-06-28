@@ -169,3 +169,17 @@ export const MakeButton = (): HTMLButtonElement => {
 	$button.style.fontSize = ".8em";
 	return $button;
 };
+
+export const getQuestionTitle = (): string => {
+	const titleElement = document.querySelector(".QuestionHeader-title");
+	if (titleElement) {
+		const clone = titleElement.cloneNode(true) as HTMLElement;
+		// 移除我们自己添加的按钮，避免标题中出现"抓取全部回答"等文字
+		const buttonInClone = clone.querySelector(".zhihucopier-button");
+		if (buttonInClone) {
+			buttonInClone.remove();
+		}
+		return clone.textContent?.trim() || "未知问题";
+	}
+	return "未知问题";
+};
