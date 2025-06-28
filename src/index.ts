@@ -1,8 +1,10 @@
 import { saveAs } from "file-saver";
 import { MakeButton, getParent, getQuestionTitle } from "./core/utils";
-import NormalItem from "./situation/NormalItem";
-import PinItem from "./situation/PinItem";
-import { extractAnswerData, ExtractedAnswerData } from "./core/extractor";
+import answerProcessor from "./processors/answerProcessor";
+import pinProcessor from "./processors/pinProcessor";
+import articleProcessor from "./processors/articleProcessor";
+import { extractAnswerData, ExtractedAnswerData } from "./core/answerExtractor";
+import { extractArticleData } from "./core/articleExtractor";
 
 interface QuestionData {
 	title: string;
@@ -135,7 +137,7 @@ const processVisibleAnswers = async () => {
 			richText.prepend(ButtonContainer);
 
 			// 处理回答
-			const markdownContent = await NormalItem(richText);
+			const markdownContent = await answerProcessor(richText);
 			const answerElement = getParent(richText, "AnswerItem") as HTMLElement;
 			const answerData = extractAnswerData(answerElement, markdownContent);
 			AddAnswer(answerData);
@@ -226,7 +228,7 @@ const processVisibleAnswers = async () => {
 			richText.prepend(ButtonContainer);
 
 			// 处理想法内容
-			const pinRaw = await PinItem(richText);
+			const pinRaw = await pinProcessor(richText);
 			const pinParent = getParent(richText, "PinItem");
 			let author = "匿名用户";
 			let authorUrl = "";
@@ -333,9 +335,79 @@ const processVisibleAnswers = async () => {
 	}
 };
 
-const main = async () => {
-	console.log("Starting…");
+/**
+ * Handles the processing of a single Zhihu Article page.
+ */
+const processArticlePage = async () => {
+	const richText = document.querySelector(".Post-RichText") as HTMLElement;
+	if (!richText || richText.querySelector(".zhihucopier-button")) {
+		return;
+	}
 
+	try {
+		const ButtonContainer = document.createElement("div");
+		ButtonContainer.classList.add("zhihucopier-button");
+		richText.prepend(ButtonContainer);
+
+		const articleContentElement = getParent(richText, "Post-Main") as HTMLElement;
+		const markdownContent = await articleProcessor(richText);
+		const articleData = extractArticleData(articleContentElement, markdownContent);
+
+		// Download Markdown Button
+		const ButtonDownloadMarkdown = MakeButton();
+		ButtonDownloadMarkdown.innerHTML = "下载Markdown";
+		ButtonDownloadMarkdown.style.borderRadius = "1em 0 0 1em";
+		ButtonDownloadMarkdown.style.paddingLeft = ".4em";
+		ButtonContainer.prepend(ButtonDownloadMarkdown);
+
+		ButtonDownloadMarkdown.addEventListener("click", () => {
+			try {
+				const fullMarkdown = `# ${articleData.title}\n\n源文章链接: ${articleData.url}\n\n` + generateSingleAnswerMarkdown(articleData, articleData.title);
+				const blob = new Blob([fullMarkdown], { type: "text/markdown;charset=utf-8" });
+				saveAs(blob, `${articleData.title}-${articleData.authorName}.md`);
+				ButtonDownloadMarkdown.innerHTML = "下载成功✅";
+				setTimeout(() => {
+					ButtonDownloadMarkdown.innerHTML = "下载Markdown";
+				}, 1000);
+			} catch (e) {
+				console.error(e);
+				ButtonDownloadMarkdown.innerHTML = "发生未知错误";
+				setTimeout(() => {
+					ButtonDownloadMarkdown.innerHTML = "下载Markdown";
+				}, 1000);
+			}
+		});
+
+		// Download JSON Button
+		const ButtonDownloadJSON = MakeButton();
+		ButtonDownloadJSON.innerHTML = "下载为JSON";
+		ButtonDownloadJSON.style.borderRadius = "0 1em 1em 0";
+		ButtonDownloadJSON.style.width = "100px";
+		ButtonDownloadJSON.style.paddingRight = ".4em";
+		ButtonContainer.appendChild(ButtonDownloadJSON);
+
+		ButtonDownloadJSON.addEventListener("click", () => {
+			try {
+				const blob = new Blob([JSON.stringify(articleData, null, 2)], { type: "application/json;charset=utf-8" });
+				saveAs(blob, `${articleData.title}-${articleData.authorName}.json`);
+				ButtonDownloadJSON.innerHTML = "下载成功✅";
+				setTimeout(() => {
+					ButtonDownloadJSON.innerHTML = "下载为JSON";
+				}, 1000);
+			} catch (e) {
+				console.error(e);
+				ButtonDownloadJSON.innerHTML = "发生未知错误";
+				setTimeout(() => {
+					ButtonDownloadJSON.innerHTML = "下载为JSON";
+				}, 1000);
+			}
+		});
+	} catch (e) {
+		console.error("处理文章时出错:", e);
+	}
+};
+
+const processQuestionPage = async () => {
 	// 添加抓取按钮
 	const Titles = Array.from(document.getElementsByClassName("QuestionHeader-title")) as HTMLElement[];
 	Titles.forEach((titleItem) => {
@@ -467,6 +539,14 @@ const main = async () => {
 	});
 
 	await processVisibleAnswers();
+}
+
+const main = async () => {
+	if (document.querySelector(".QuestionHeader-title")) {
+		await processQuestionPage();
+	} else if (document.querySelector(".Post-Main")) {
+		await processArticlePage();
+	}
 };
 
 // 运行主函数
