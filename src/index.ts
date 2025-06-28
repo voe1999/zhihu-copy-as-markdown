@@ -311,38 +311,55 @@ const main = async () => {
 				Button.innerHTML = "开始抓取...";
 
 				// 抓取所有回答
-				let attempts = 0;
-				const maxAttempts = 100; // 防止无限循环
-				let prevAnswerCount = 0;
+				let lastHeight = 0;
+				let consecutiveNoChange = 0;
+				const maxConsecutiveNoChange = 3; // 连续3次高度不变则认为到底
 
-				while (attempts < maxAttempts) {
-					// 处理当前可见的回答
+				while (true) {
+					// 1. 处理当前可见的回答
 					await processVisibleAnswers();
+					Button.innerHTML = `已抓取 ${allAnswers.length} 个回答...`;
 
-					// 获取当前回答数量
-					const currentAnswerCount = allAnswers.length;
-					if (currentAnswerCount > prevAnswerCount) {
-						Button.innerHTML = `已抓取 ${currentAnswerCount} 个回答...`;
-						prevAnswerCount = currentAnswerCount;
+					// 2. 查看是否有"显示更多"按钮，有就点
+					const loadMoreButton = document.querySelector(".QuestionMainAction");
+					if (loadMoreButton && !(loadMoreButton as HTMLElement).innerText.includes("收起")) {
+						(loadMoreButton as HTMLElement).click();
+						await sleep(1500); // 点击后等待加载
 					}
 
-					// 点击"显示更多"按钮
-					const loadMoreButton = await waitForElement(".QuestionMainAction");
-					if (!loadMoreButton || loadMoreButton.textContent?.includes("收起")) {
-						if (!isBottomReached()) {
-							// 如果没有到达底部，继续滚动
-							scrollToBottom();
-							await sleep(1000);
-							continue;
+					// 3. 滚动到底部来触发懒加载
+					window.scrollTo({ top: document.body.scrollHeight, behavior: "auto" });
+					await sleep(2000); // 等待滚动和懒加载
+
+					// 4. 模拟"jiggle"以触发一些棘手的懒加载
+					window.scrollBy(0, -100);
+					await sleep(200);
+					window.scrollTo({ top: document.body.scrollHeight, behavior: "auto" });
+					await sleep(2000);
+
+					// 5. 检查是否加载了新内容
+					const currentHeight = document.body.scrollHeight;
+					if (currentHeight === lastHeight) {
+						consecutiveNoChange++;
+						if (consecutiveNoChange >= maxConsecutiveNoChange) {
+							// 如果高度连续多次没有变化，我们认为已经到底了
+							await processVisibleAnswers(); // 最后再处理一次，以防万一
+							Button.innerHTML = `抓取完成 ${allAnswers.length} 个`;
+							console.log("页面高度未变化，抓取结束。");
+							break;
 						}
+					} else {
+						consecutiveNoChange = 0; // 高度变了，重置计数器
+					}
+					lastHeight = currentHeight;
+
+					// 6. 如果出现了"收起"按钮，也代表结束
+					const finalLoadMoreButton = document.querySelector(".QuestionMainAction");
+					if (finalLoadMoreButton && (finalLoadMoreButton as HTMLElement).innerText.includes("收起")) {
+						await processVisibleAnswers(); // 最后再处理一次
+						console.log("已找到“收起”按钮，抓取结束。");
 						break;
 					}
-
-					// 点击加载更多
-					(loadMoreButton as HTMLElement).click();
-					await sleep(1000);
-
-					attempts++;
 				}
 
 				// 下载所有回答
