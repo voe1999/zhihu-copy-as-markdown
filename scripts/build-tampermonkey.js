@@ -1,5 +1,5 @@
 import fs from "fs";
-import { UserScript, UserScriptContent } from "../tampermonkey-config.js";
+import { UserScript, UserScriptContent } from "../src/tampermonkey-config.js";
 
 
 // Padding 长度

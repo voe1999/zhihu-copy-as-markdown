@@ -1,0 +1,22 @@
+import type { Config } from "@jest/types";
+
+const config: Config.InitialOptions = {
+  preset: "ts-jest/presets/default-esm",
+  testEnvironment: "jsdom",
+  extensionsToTreatAsEsm: [".ts"],
+  globals: {
+    "ts-jest": {
+      useESM: true,
+      tsconfig: "./tsconfig.json",
+    },
+  },
+  moduleFileExtensions: ["ts", "js", "json", "node"],
+  moduleNameMapper: {
+    "^@cljs/(.*)$": "<rootDir>/build/cljs/$1",
+  },
+  testMatch: ["**/?(*.)+(spec|test).[tj]s"],
+  collectCoverageFrom: ["src/**/*.{ts,js}", "!src/**/*.d.ts"],
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
+};
+
+export default config;

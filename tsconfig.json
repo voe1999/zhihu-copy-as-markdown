@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "outDir": "./build/ts",
-        "rootDir": "src",
+        "rootDir": "./",
         "paths": {
             "@cljs/*": [
                 "./build/cljs/*"
@@ -21,8 +21,16 @@
         "sourceMap": true,
         // "inlineSourceMap": true,
         "moduleResolution": "node",
+        "types": ["jest", "node"],
         "baseUrl": ".",
     },
+    "include": [
+        "src/**/*",
+        "tests/**/*",
+        "jest.config.ts",
+        "jest.setup.ts",
+        "scripts/**/*"
+    ],
     "exclude": [
         "node_modules",
         "dist",
