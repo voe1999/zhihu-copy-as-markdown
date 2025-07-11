@@ -4,15 +4,25 @@
   (:require [cljs.spec.alpha :as s]))
 
 (defn ^:export zhihuLinkToNormalLink
-  "Converts a Zhihu link to a normal link."
+  "Converts a Zhihu link to a normal link. 支持 link.zhihu.com 与 zhida.zhihu.com 两种跳转链接。"
   [link]
   (try
-    (let [url (js/URL. link)]
-      (if (= (.-hostname url) "link.zhihu.com")
-        (-> (js/URLSearchParams. (.-search url))
-            (.get "target")
-            (js/decodeURIComponent))
-        link))
+    (let [url    (js/URL. link)
+          host   (.-hostname url)
+          params (js/URLSearchParams. (.-search url))]
+      (cond
+        ;; link.zhihu.com 重定向
+        (= host "link.zhihu.com")
+        (some-> params (.get "target") js/decodeURIComponent)
+
+        ;; zhida.zhihu.com 搜索实体
+        (= host "zhida.zhihu.com")
+        (let [q (.get params "q")]
+          (if q
+            (str "https://www.zhihu.com/search?q=" (js/decodeURIComponent q))
+            link))
+
+        :else link))
     (catch :default _ link)))
 
 (defn ^:export getParent
