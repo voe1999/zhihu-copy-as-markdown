@@ -1,0 +1,11 @@
+{:source-paths
+ ["src"]
+
+ :builds
+ {:zhihu-downloader
+  {:target     :esm
+   :output-dir "build/cljs"
+   :modules
+   {:zhihu-downloader
+    {:entries [zhihu-downloader]}}
+   :js-options {:resolve {"@ts" "./build/ts"}}}}}

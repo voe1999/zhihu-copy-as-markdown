@@ -9,3 +9,4 @@ package-lock.json
 /build/
 .clj-kondo/
 .lsp/
+.shadow-cljs/
