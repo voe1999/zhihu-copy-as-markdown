@@ -1,16 +1,17 @@
 {
   "name": "zhihu-downloader",
-  "version": "0.3.65",
+  "version": "0.3.66",
   "scripts": {
     "dev": "run-s build:test start",
     "start": "run-p watch serve",
     "serve": "live-server ./dist",
     "watch": "webpack --mode development --watch",
     "build:ts": "tsc",
+    "build:cljs": "shadow-cljs release zhihu-downloader",
     "build:vite": "vite build",
     "build:production": "webpack --mode production",
     "build:tampermonkey": "node src/scripts/build-tampermonkey.js",
-    "build": "run-s build:ts build:vite build:update build:tampermonkey",
+    "build": "run-s build:ts build:cljs build:vite build:update build:tampermonkey",
     "build:update": "node src/scripts/add-version.js",
     "build:test": "node src/scripts/build-test-html.js",
     "lint": "eslint --fix --ext .js,.ts ./src ./scripts webpack.config.js"

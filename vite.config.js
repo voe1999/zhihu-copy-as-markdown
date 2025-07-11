@@ -11,6 +11,10 @@ export default defineConfig({
             name: "zhihu-downloader",
             fileName: (format) => `zhihu-downloader.${format}.js`,
         },
-
     },
+    resolve: {
+        alias: {
+            "@cljs": resolve(__dirname, "build/cljs"),
+        }
+    }
 }) 
