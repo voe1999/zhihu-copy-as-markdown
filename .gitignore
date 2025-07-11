@@ -5,3 +5,7 @@ pnpm-lock.yaml
 
 .DS_Store
 package-lock.json
+
+/build/
+.clj-kondo/
+.lsp/

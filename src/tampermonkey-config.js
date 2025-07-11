@@ -4,7 +4,7 @@ import md5 from "md5";
 const packageInfo = JSON.parse(fs.readFileSync("./package.json", "utf-8").toString());
 
 export const UserScriptContent = fs
-	.readFileSync("./dist/bundle.min.js", "utf-8")
+	.readFileSync("./dist/zhihu-downloader.umd.js", "utf-8")
 	.toString()
 	.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "").trim();
 
