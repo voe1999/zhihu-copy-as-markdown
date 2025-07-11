@@ -19,6 +19,8 @@
     "test": "jest --runInBand --passWithNoTests"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.0",
+    "@babel/preset-env": "^7.28.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@types/file-saver": "^2.0.7",
     "@types/jest": "^30.0.0",
@@ -26,6 +28,7 @@
     "@types/md5": "^2.3.4",
     "@types/node": "^20.7.1",
     "@typescript-eslint/parser": "^6.9.1",
+    "babel-jest": "^30.0.4",
     "eslint": "^8.52.0",
     "jest": "^30.0.4",
     "jest-environment-jsdom": "^30.0.4",

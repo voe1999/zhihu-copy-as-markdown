@@ -12,6 +12,18 @@ const config: Config.InitialOptions = {
         tsconfig: "./tsconfig.json",
       },
     ],
+    "^.+\\.jsx?$": [
+      "babel-jest",
+      {
+        presets: [[
+          "@babel/preset-env",
+          {
+            targets: { node: "current" },
+            modules: "commonjs",
+          },
+        ]],
+      },
+    ],
   },
   moduleFileExtensions: ["ts", "js", "json", "node"],
   moduleNameMapper: {
