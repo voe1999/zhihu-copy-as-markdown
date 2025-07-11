@@ -213,8 +213,6 @@ export const lexer = (input: NodeListOf<Element>): LexType[] => {
 		// console.log(tokens);
 	}
 
-	console.log(tokens);
-
 	return tokens;
 };
 
