@@ -1,5 +1,6 @@
 import { saveAs } from "file-saver";
-import { MakeButton, getParent, getQuestionTitle } from "./core/utils";
+//@ts-ignore
+import { makeButton as MakeButton, getParent, getQuestionTitle } from "@cljs/core/utils";
 import answerProcessor from "./processors/answerProcessor";
 import pinProcessor from "./processors/pinProcessor";
 import articleProcessor from "./processors/articleProcessor";
@@ -428,7 +429,7 @@ const processQuestionPage = async () => {
 			titleItem.prepend(Button);
 		}
 
-		Button.addEventListener("click", async (e) => {
+		Button.addEventListener("click", async (e: Event) => {
 			e.stopPropagation();
 			e.preventDefault();
 

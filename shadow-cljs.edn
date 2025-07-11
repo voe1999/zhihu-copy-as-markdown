@@ -4,8 +4,10 @@
  :builds
  {:zhihu-downloader
   {:target     :esm
-   :output-dir "build/cljs"
-   :modules
-   {:zhihu-downloader
-    {:entries [zhihu-downloader]}}
-   :js-options {:resolve {"@ts" "./build/ts"}}}}}
+   :output-dir "build/cljs/core"
+   :modules {:utils {:entries [core.utils]
+                     :exports {zhihuLinkToNormalLink core.utils/zhihuLinkToNormalLink
+                               getParent core.utils/getParent
+                               makeButton core.utils/makeButton
+                               getQuestionTitle core.utils/getQuestionTitle}}}
+   :js-options {:resolve {"@ts" ["./build/ts"]}}}}}

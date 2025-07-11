@@ -3,7 +3,8 @@ import { parser } from "../core/parser";
 import { lexer } from "../core/pinsLexer";
 import { TokenType } from "../core/tokenTypes";
 import type { LexType, TokenFigure } from "../core/tokenTypes";
-import * as utils from "../core/utils";
+//@ts-ignore
+import * as utils from "@cljs/core/utils";
 import savelex from "../core/savelex";
 
 export default async (dom: HTMLElement): Promise<{

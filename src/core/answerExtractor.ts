@@ -1,4 +1,5 @@
-import { getParent, getQuestionTitle } from "./utils";
+//@ts-ignore
+import { getParent, getQuestionTitle } from "@cljs/core/utils";
 
 export interface ExtractedAnswerData {
     id: string;

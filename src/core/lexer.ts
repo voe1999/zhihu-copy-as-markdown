@@ -24,7 +24,8 @@ import type {
 } from "./tokenTypes";
 
 import { TokenType } from "./tokenTypes";
-import { ZhihuLink2NormalLink } from "./utils";
+//@ts-ignore
+import { zhihuLinkToNormalLink } from "@cljs/core/utils";
 
 
 /**
@@ -74,7 +75,7 @@ export const lexer = (input: NodeListOf<Element>): LexType[] => {
 					tokens.push({
 						type: TokenType.Link,
 						text: link.getAttribute("data-text"),
-						href: ZhihuLink2NormalLink(link.href),
+						href: zhihuLinkToNormalLink(link.href),
 						dom: node as HTMLDivElement
 					} as TokenLink);
 				} else if (node.querySelector("video")) {
@@ -320,7 +321,7 @@ const Tokenize = (node: Element | string): TokenTextType[] => {
 					res.push({
 						type: TokenType.InlineLink,
 						text: el.textContent,
-						href: ZhihuLink2NormalLink((el as HTMLAnchorElement).href),
+						href: zhihuLinkToNormalLink((el as HTMLAnchorElement).href),
 						dom: el,
 					} as TokenTextLink);
 					break;
